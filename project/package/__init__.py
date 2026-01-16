@@ -6,7 +6,9 @@ from uuid import uuid4 as _uuid4
 from jl95 import batteries as _b
 from jl95.net import io as _net_io
 
-class Requester[A,R](_typing.Protocol):
+class Closeable(_net_io.Closeable, _typing.Protocol): pass
+
+class Requester[A,R](Closeable, _typing.Protocol):
 
     @_abc.abstractmethod
     def __call__(self, data:A) -> _b.Future[R]: ...
@@ -20,8 +22,8 @@ class IOSRRequester[A,R](Requester[A,R]):
     def deserialize(self, data:bytes) -> R: ...
 
     def __init__(self,
-                 sender  :_net_io.SenderIf  [bytes], 
-                 receiver:_net_io.ReceiverIf[bytes]):
+                 sender  :_net_io.Sender  [bytes], 
+                 receiver:_net_io.Receiver[bytes]):
 
         self._sender = sender
         self._receiver = receiver
@@ -59,6 +61,12 @@ class IOSRRequester[A,R](Requester[A,R]):
         self._sender.send(request)
         return response_future.map(self.deserialize)
     
+    @_typing.override
+    def close(self):
+
+        self._receiver.close()
+        self._sender  .close()
+
     def adapted[A2,R2](self, 
                        fser  :_typing.Callable[[A2], A], 
                        fdeser:_typing.Callable[[R], R2]) -> 'IOSRRequester[A2,R2]':
@@ -95,7 +103,7 @@ class BytesIOSRRequester(IOSRRequester[bytes, bytes]):
     @_typing.override
     def deserialize(self, data:bytes) -> bytes: return data # as-is
 
-class ResponderIf[A,R](_typing.Protocol):
+class Responder[A,R](Closeable, _typing.Protocol):
 
     @_abc.abstractmethod
     def respond_while(self, handler:_typing.Callable[[A], tuple[R,bool]]): ...
@@ -108,7 +116,7 @@ class ResponderIf[A,R](_typing.Protocol):
 
         self.respond_while(lambda data: (handler(data), False,))
 
-class IOSRResponder[A,R](ResponderIf[A,R]):
+class IOSRResponder[A,R](Responder[A,R]):
 
     @_abc.abstractmethod
     def deserialize(self, data:bytes) -> A: ...
@@ -117,8 +125,8 @@ class IOSRResponder[A,R](ResponderIf[A,R]):
     def serialize(self, data:R) -> bytes: ...
 
     def __init__(self,
-                 receiver:_net_io.ReceiverIf[bytes],
-                 sender  :_net_io.SenderIf  [bytes]):
+                 receiver:_net_io.Receiver[bytes],
+                 sender  :_net_io.Sender  [bytes]):
 
         self._sender       = sender
         self._receiver     = receiver
@@ -141,6 +149,12 @@ class IOSRResponder[A,R](ResponderIf[A,R]):
     def respond_while(self, handler: _typing.Callable[[A], tuple[R, bool]]):
         
         self._receiver.recv_while(lambda request: self._handle(request, handler))
+
+    @_typing.override
+    def close(self):
+
+        self._receiver.close()
+        self._sender  .close()
 
     def adapted[A2,R2](self, 
                        fdeser:_typing.Callable[[A], A2], 

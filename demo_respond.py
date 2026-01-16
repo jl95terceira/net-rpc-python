@@ -16,6 +16,9 @@ def respond(msg:str):
     rmsg = f"{repr(msg)} has {len(msg)} characters"
     print(f">>> {rmsg}")
     return rmsg
-responder.respond_forever(respond)
-sock.close()
+try:
+    responder.respond_forever(respond)
+except KeyboardInterrupt:
+    pass
+responder.close()
 print("Done.")
