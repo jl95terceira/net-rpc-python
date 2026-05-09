@@ -1,21 +1,47 @@
+import argparse
 import socket
+import typing
 
 from project.package import *
 from project.package import util
 
-sock = socket.socket()
-sock.connect(("127.0.0.1", 4243,))
-print("Connect")
-requester = util.requester_from_socket(sock).adapted(str.encode, bytes.decode)
-n_empty = 0
-while True:
-    request = input(">>> ")
-    if not request:
-        n_empty += 1
-        if n_empty >= 2:
-            break
-        continue
+def demo(addr,
+         on_connected=lambda   : print("Connected"),
+         get_request =lambda   : input(">>> "),
+         on_response =lambda re: print(f"<<< {re}"),
+         on_closed   =lambda   : print("Done.")):
+
+    sock = socket.socket()
+    sock.connect(addr)
+    on_connected()
+    requester = util.requester_from_socket(sock).adapted(str.encode, bytes.decode)
     n_empty = 0
-    print("<<< "+requester(request).get(3.0))
-requester.close()
-print("Done.")
+    while True:
+        request = get_request()
+        if not request:
+            n_empty += 1
+            if n_empty >= 2:
+                break
+            continue
+        n_empty = 0
+        on_response(requester(request).get(10))
+    requester.close()
+    on_closed()
+
+def main():
+
+    ap = argparse.ArgumentParser()
+    class Defaults:
+        IP_ADDR = "127.0.0.1:4243"
+    ap.add_argument("--ip-addr","-a",
+                    help=f"IP address of peer responder",
+                    default=Defaults.IP_ADDR)
+    get = ap.parse_args().__getattribute__
+    ip_addr_repr:str = get("ip_addr")
+    ip_addr = (lambda i: (
+        ip_addr_repr[:i],
+        int(ip_addr_repr[1+i:]),
+    ))(ip_addr_repr.find(":"))
+    demo(ip_addr)
+
+if __name__ == "__main__": main()
