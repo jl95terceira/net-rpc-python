@@ -34,7 +34,7 @@ def main():
     class Defaults:
         IP_ADDR = "127.0.0.1:4243"
     ap.add_argument("--ip-addr","-a",
-                    help=f"IP address of peer requester",
+                    help=f"IP address to bind",
                     default=Defaults.IP_ADDR)
     ap.add_argument("--count",
                     help=f"Instead of manually responding, automatically count the characters in the request and return it descriptively",

@@ -34,7 +34,7 @@ def main():
     class Defaults:
         IP_ADDR = "127.0.0.1:4243"
     ap.add_argument("--ip-addr","-a",
-                    help=f"IP address of peer responder",
+                    help=f"IP address to connect",
                     default=Defaults.IP_ADDR)
     get = ap.parse_args().__getattribute__
     ip_addr_repr:str = get("ip_addr")
